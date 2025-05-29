@@ -1,0 +1,281 @@
+{% extends 'warehouse/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Data Warehouse System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h2 mb-0">
+                    <i class="fas fa-chart-dashboard me-2"></i>
+                    Data Warehouse Dashboard
+                </h1>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="refreshDashboard()">
+                        <i class="fas fa-refresh me-1"></i>
+                        Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                        <i class="fas fa-upload me-1"></i>
+                        Upload Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-white-75 small">Total Records</div>
+                            <div class="text-lg fw-bold" id="total-records">{{ total_records|default:0 }}</div>
+                        </div>
+                        <div class="fa-3x text-white-25">
+                            <i class="fas fa-database"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-white-75 small">Data Schemas</div>
+                            <div class="text-lg fw-bold" id="total-schemas">{{ total_schemas|default:0 }}</div>
+                        </div>
+                        <div class="fa-3x text-white-25">
+                            <i class="fas fa-sitemap"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-white-75 small">Unstructured Data</div>
+                            <div class="text-lg fw-bold" id="total-unstructured">{{ total_unstructured|default:0 }}</div>
+                        </div>
+                        <div class="fa-3x text-white-25">
+                            <i class="fas fa-file-text"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-white-75 small">History Entries</div>
+                            <div class="text-lg fw-bold" id="total-history">{{ total_history_entries|default:0 }}</div>
+                        </div>
+                        <div class="fa-3x text-white-25">
+                            <i class="fas fa-history"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Daily Data Ingestion Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ingestionChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Schema Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="schemaChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Data Tables -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-search me-2"></i>
+                        Data Search & Query
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="searchForm" class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="searchQuery" class="form-label">Search Query</label>
+                            <input type="text" class="form-control" id="searchQuery" placeholder="Search structured and unstructured data...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="dataType" class="form-label">Data Type</label>
+                            <select class="form-select" id="dataType">
+                                <option value="all">All Data</option>
+                                <option value="structured">Structured Only</option>
+                                <option value="unstructured">Unstructured Only</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="schemaFilter" class="form-label">Schema Filter</label>
+                            <select class="form-select" id="schemaFilter">
+                                <option value="">All Schemas</option>
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>
+                                Search
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">
+                                <i class="fas fa-times me-1"></i>
+                                Clear
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Search Results -->
+                    <div id="searchResults" class="d-none">
+                        <h6>Search Results</h6>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>ID</th>
+                                        <th>Content</th>
+                                        <th>Schema/Title</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="searchResultsBody">
+                                    <!-- Search results will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <!-- <div class="row">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Recent Data Records
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="recentRecords">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Sample User Profiles
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="userProfiles">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> -->
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload me-2"></i>
+                    Upload Data
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Use the API endpoints to upload data:</p>
+                <ul>
+                    <li><strong>Structured Data:</strong> POST to <code>/api/ingest/structured/</code></li>
+                    <li><strong>Unstructured Data:</strong> POST to <code>/api/ingest/unstructured/</code></li>
+                    <li><strong>CSV Files:</strong> POST to <code>/api/ingest/csv/</code></li>
+                    <li><strong>JSON Files:</strong> POST to <code>/api/ingest/json/</code></li>
+                </ul>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Visit the <a href="/api/" class="alert-link">API Documentation</a> for detailed examples and schemas.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="/api/" class="btn btn-primary">View API Docs</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Initialize dashboard when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDashboard();
+});
+</script>
+{% endblock %}
